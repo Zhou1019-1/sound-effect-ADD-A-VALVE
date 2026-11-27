@@ -1,0 +1,25 @@
+# Build outputs
+build/
+build-*/
+out/
+_CPack_Packages/
+CMakeUserPresets.json
+
+# Packaged binaries
+ADD-A-VALVE-*-Windows-*.zip
+ADD-A-VALVE-*-Windows-*/
+
+# IDE and local tooling
+.vs/
+.vscode/
+.idea/
+.trae/
+.screenshots/
+*.user
+*.suo
+*.VC.db
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

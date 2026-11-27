@@ -1,0 +1,21 @@
+ADD A VALVE 0.1.0
+
+JUCE 8.0.8
+Source: https://github.com/juce-framework/JUCE
+Pinned commit: d6181bde38d858c283c3b7bf699ce6340c050b5d
+Licence: JUCE 8 End User Licence Agreement or GNU AGPL version 3.
+JUCE licence: https://juce.com/legal/juce-8-licence/
+AGPLv3: https://www.gnu.org/licenses/agpl-3.0.html
+
+This MVP is distributed under the GNU Affero General Public License version 3.
+The corresponding application source and the pinned JUCE source revision must be
+made available when distributing the application.
+
+LAME 3.100.1
+Source: https://github.com/lameproject/lame
+Pinned commit: 1f5cc9487284d5950343aa5d4f70de433468070a
+Website: https://lame.sourceforge.io/
+Licence: GNU Library General Public License version 2 or (at your option) any later version.
+The unmodified LAME source is available from the pinned revision above.
+LAME is built and distributed as a separate lame.exe process used only for MP3 export.
+See LAME_COPYING.txt and LAME_LICENSE.txt in the binary package.
