@@ -18,12 +18,11 @@ void ValveProcessor::prepare(double sampleRate, int samplesPerBlock, int numChan
         static_cast<juce::uint32>(maximumBlockSize * 4),
         static_cast<juce::uint32>(channelCount)
     };
-    const auto dcCoefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(oversampledRate, 5.0f, 0.7071f);
+    // 用 double 版本：5 Hz / Q=0.7071 的频响完全一致，只是精度提到 double，
+    // 避免近极点在 float32 下被舍入放大到发散（见头文件里的说明）。
+    const auto dcCoefficients = juce::dsp::IIR::Coefficients<double>::makeHighPass(oversampledRate, 5.0, 0.7071);
     for (auto& filter : dcFilters)
-    {
-        filter.prepare(oversampledSpec);
-        filter.coefficients = dcCoefficients;
-    }
+        filter.setCoefficients (*dcCoefficients);
 
     dryStorage.setSize(channelCount, maximumBlockSize);
     dryDelay.setMaximumDelayInSamples(juce::jmax(1, static_cast<int>(std::ceil(getLatencyInSamples())) + 4));
@@ -130,9 +129,11 @@ void ValveProcessor::process(juce::AudioBuffer<float>& buffer)
 
     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel)
     {
-        auto channelBlock = oversampledBlock.getSingleChannelBlock(channel);
-        juce::dsp::ProcessContextReplacing<float> context(channelBlock);
-        dcFilters[channel].process(context);
+        auto* samples = oversampledBlock.getChannelPointer(channel);
+        auto& dcBlocker = dcFilters[channel];
+        const auto numOversampled = oversampledBlock.getNumSamples();
+        for (size_t i = 0; i < numOversampled; ++i)
+            samples[i] = dcBlocker.process(samples[i]);
     }
     oversampling->processSamplesDown(block);
 
