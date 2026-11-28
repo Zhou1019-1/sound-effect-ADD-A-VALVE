@@ -82,6 +82,8 @@ target_sources(AddAValve PRIVATE
     src/app/MainComponent.cpp
     src/ui/ControlPanel.h
     src/ui/ControlPanel.cpp
+    src/ui/RotaryKnob.h
+    src/ui/RotaryKnob.cpp
     src/ui/MeterPanel.h
     src/ui/MeterPanel.cpp
     src/ui/WaveformView.h

@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "../dsp/ValveParameters.h"
+#include "RotaryKnob.h"
 
 class ControlPanel : public juce::Component
 {
@@ -22,7 +23,7 @@ public:
 private:
     struct Control
     {
-        juce::Slider slider;
+        RotaryKnob slider;      // 角度式拖拽，见 RotaryKnob.h
         juce::Label label;
     };
 
