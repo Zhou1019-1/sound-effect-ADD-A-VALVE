@@ -6,7 +6,14 @@
 class ValveProcessor
 {
 public:
+#if defined (ADDAVALVE_EXTERNAL_DSP) && ADDAVALVE_EXTERNAL_DSP
+    /** 外接引擎模式下构造/析构都必须落到 .cpp：`EngineState` 在那里才是完整类型，
+        否则 = default 版本会在成员清理路径上实例化 unique_ptr 的析构并报
+        C2027「使用了未定义类型」。见 external/engine_adapter.cpp。 */
+    ValveProcessor();
+#else
     ValveProcessor() = default;
+#endif
 
     void prepare(double sampleRate, int samplesPerBlock, int numChannels);
     void reset();
@@ -14,7 +21,18 @@ public:
     void process(juce::AudioBuffer<float>& buffer);
     float getLatencyInSamples() const;
 
+#if defined (ADDAVALVE_EXTERNAL_DSP) && ADDAVALVE_EXTERNAL_DSP
+    /** 外接引擎模式专用：实现在 external/engine_adapter.cpp，见那里的文件头说明。
+        内置实现的状态全是成员对象，析构是自动的；外接实现需要在析构里 aav_destroy()，
+        所以这里必须有一个落到 .cpp 的析构函数（EngineState 在那里才是完整类型）。 */
+    ~ValveProcessor();
+#endif
+
 private:
+#if defined (ADDAVALVE_EXTERNAL_DSP) && ADDAVALVE_EXTERNAL_DSP
+    struct EngineState;              // 定义在 external/engine_adapter.cpp
+    std::unique_ptr<EngineState> engine;
+#else
     static float saturate(float input, float character) noexcept;
 
     ValveParameters parameters {};
@@ -65,6 +83,7 @@ private:
     int maximumBlockSize = 0;
     int channelCount = 0;
     bool prepared = false;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ValveProcessor)
 };
