@@ -8,6 +8,16 @@ set_directory_properties(PROPERTIES VS_STARTUP_PROJECT AddAValve)
 
 include(cmake/Dependencies.cmake)
 
+# ---------------------------------------------------------------- 分层 -----
+#  AddAValveCore          静态库：DSP + 计量 + 播放引擎 + 文档模型 + 导出（不含任何 GUI 符号）
+#  AddAValve              GUI 应用：只通过 AddAValveCore 使用核心层
+#  AddAValveTests         单元测试
+#  AddAValveCoreApiSmoke  冒烟目标：只 include <core_api.h>，验证公共契约自足
+#
+#  源文件列表必须在被引用之前定义：ADDAVALVE_CORE_SOURCES 由
+#  DSP_SOURCES / MODEL_SOURCES / ADDAVALVE_AUDIO_SOURCES 拼成，三者都在
+#  add_library(AddAValveCore) 之前定义。
+
 set(DSP_SOURCES
     src/dsp/ValveParameters.h
     src/dsp/ValveProcessor.h
@@ -19,6 +29,42 @@ set(MODEL_SOURCES
     src/model/PresetStore.h
     src/model/PresetStore.cpp
 )
+set(ADDAVALVE_AUDIO_SOURCES
+    src/audio/Metering.h
+    src/audio/Metering.cpp
+    src/audio/PlaybackEngine.h
+    src/audio/PlaybackEngine.cpp
+    src/audio/AudioExporter.h
+    src/audio/AudioExporter.cpp
+)
+
+set(ADDAVALVE_CORE_SOURCES ${DSP_SOURCES} ${MODEL_SOURCES} ${ADDAVALVE_AUDIO_SOURCES})
+
+# 核心层专用 JUCE 聚合头：静态库目标无法用 juce_generate_juce_header()，
+# 这里在 configure 阶段生成一份固定的（只含核心层用到的模块），详见文件头注释。
+set(ADDAVALVE_CORE_JUCE_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/AddAValveCore_artefacts/JuceLibraryCode")
+file(MAKE_DIRECTORY "${ADDAVALVE_CORE_JUCE_HEADER_DIR}")
+configure_file(cmake/JuceHeaderCore.h "${ADDAVALVE_CORE_JUCE_HEADER_DIR}/JuceHeader.h" COPYONLY)
+
+add_library(AddAValveCoreJuceHeader INTERFACE)
+target_include_directories(AddAValveCoreJuceHeader INTERFACE "${ADDAVALVE_CORE_JUCE_HEADER_DIR}")
+
+add_library(AddAValveCore STATIC ${ADDAVALVE_CORE_SOURCES})
+target_include_directories(AddAValveCore PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/core)
+target_compile_definitions(AddAValveCore PUBLIC
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1)
+target_link_libraries(AddAValveCore PUBLIC
+    AddAValveCoreJuceHeader
+    juce::juce_audio_basics
+    juce::juce_audio_devices
+    juce::juce_audio_formats
+    juce::juce_dsp
+    juce::juce_data_structures
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_warning_flags)
+# ---------------------------------------------------------------------------
 
 set(ADD_A_VALVE_ICON "${CMAKE_CURRENT_BINARY_DIR}/app-icon.png")
 configure_file("icon/章鱼哥胆机icon.png" "${ADD_A_VALVE_ICON}" COPYONLY)
@@ -34,14 +80,6 @@ target_sources(AddAValve PRIVATE
     src/app/Main.cpp
     src/app/MainComponent.h
     src/app/MainComponent.cpp
-    ${DSP_SOURCES}
-    ${MODEL_SOURCES}
-    src/audio/Metering.h
-    src/audio/Metering.cpp
-    src/audio/PlaybackEngine.h
-    src/audio/PlaybackEngine.cpp
-    src/audio/AudioExporter.h
-    src/audio/AudioExporter.cpp
     src/ui/ControlPanel.h
     src/ui/ControlPanel.cpp
     src/ui/MeterPanel.h
@@ -57,6 +95,7 @@ target_compile_definitions(AddAValve PRIVATE
     JUCE_APPLICATION_VERSION_STRING="${PROJECT_VERSION}"
 )
 target_link_libraries(AddAValve PRIVATE
+    AddAValveCore
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_data_structures
@@ -68,12 +107,6 @@ target_link_libraries(AddAValve PRIVATE
 juce_add_console_app(AddAValveTests PRODUCT_NAME "ADD A VALVE Tests")
 juce_generate_juce_header(AddAValveTests)
 target_sources(AddAValveTests PRIVATE
-    ${DSP_SOURCES}
-    ${MODEL_SOURCES}
-    src/audio/Metering.h
-    src/audio/Metering.cpp
-    src/audio/AudioExporter.h
-    src/audio/AudioExporter.cpp
     tests/TestMain.cpp
     tests/ValveProcessorTests.cpp
     tests/AudioDocumentTests.cpp
@@ -82,12 +115,20 @@ target_sources(AddAValveTests PRIVATE
 )
 target_compile_definitions(AddAValveTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1)
 target_link_libraries(AddAValveTests PRIVATE
+    AddAValveCore
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_data_structures
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags
 )
+
+# 公共头冒烟目标：不生成自己的 JuceHeader.h、不直接链任何 juce:: 模块，
+# 所有依赖只能来自 AddAValveCore 的 PUBLIC 接口。core/core_api.h 少写一条
+# include 路径、或 src/ core/ 漏进 PUBLIC，这里立刻编不过。
+juce_add_console_app(AddAValveCoreApiSmoke PRODUCT_NAME "ADD A VALVE Core API Smoke")
+target_sources(AddAValveCoreApiSmoke PRIVATE tests/CoreApiSmoke.cpp)
+target_link_libraries(AddAValveCoreApiSmoke PRIVATE AddAValveCore)
 
 if(TARGET LameEncoder)
     add_dependencies(AddAValve LameEncoder)
@@ -104,12 +145,15 @@ if(TARGET LameEncoder)
 endif()
 
 if(MSVC)
+    target_compile_options(AddAValveCore PRIVATE /utf-8)
     target_compile_options(AddAValve PRIVATE /utf-8)
     target_compile_options(AddAValveTests PRIVATE /utf-8)
+    target_compile_options(AddAValveCoreApiSmoke PRIVATE /utf-8)
 endif()
 
 enable_testing()
 add_test(NAME AddAValveUnitTests COMMAND AddAValveTests)
+add_test(NAME AddAValveCoreApiSmoke COMMAND AddAValveCoreApiSmoke)
 
 install(TARGETS AddAValve RUNTIME DESTINATION .)
 install(FILES LICENSE THIRD_PARTY_NOTICES.txt DESTINATION .)
