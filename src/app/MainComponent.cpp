@@ -302,7 +302,9 @@ void MainComponent::chooseGain()
     dialog->addTextEditor(L"gain", L"0.0", L"增益 (dB)");
     dialog->addButton(L"确定", 1, juce::KeyPress(juce::KeyPress::returnKey));
     dialog->addButton(L"取消", 0, juce::KeyPress(juce::KeyPress::escapeKey));
-    dialog->centreWithSize(380, 160);
+    // AlertWindow 的 addButton() 内部会按内容重算高度（说明文字 + 文本框 + 按钮行），
+    // 这里不要再写死高度：原来给的 160 在 150% DPI 下比内容矮，底部按钮会被裁掉一半。
+    dialog->centreWithSize (juce::jmax (380, dialog->getWidth()), dialog->getHeight());
 
     auto* dialogPointer = dialog.release();
     std::weak_ptr<bool> weakAlive = alive;
