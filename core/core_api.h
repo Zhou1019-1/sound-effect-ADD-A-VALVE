@@ -65,6 +65,6 @@ namespace addavalve::core
 //   它是「文件到文件」的完整链路，可以在 console 目标里直接调用。
 
 /** 库版本 —— 与 CHANGELOG 同步。 */
-inline constexpr const char* coreVersion() noexcept { return "0.1.0"; }
+inline constexpr const char* coreVersion() noexcept { return "0.1.1"; }
 
 } // namespace addavalve::core
